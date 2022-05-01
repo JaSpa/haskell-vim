@@ -16,6 +16,28 @@ if get(g:, 'haskell_backpack', 0)
   syn keyword haskellBackpackDependency dependency
 endif
 
+" Possible escape sequences taken from the Haskell 2010 Report.
+let s:escapes = []
+" charesc
+let s:escapes += [
+  \ '[abfnrtv"''\\]'
+  \ ]
+" ascii
+let s:escapes += [
+  \ '\^[A-Z@\[_\]\^\\]',
+  \ 'NUL', 'SOH', 'STX', 'ETX', 'EOT', 'ENQ', 'ACK',
+  \ 'BEL', 'BS', 'HT', 'LF', 'VT', 'FF', 'CR', 'SO', 'SI', 'DLE',
+  \ 'DC1', 'DC2', 'DC3', 'DC4', 'NAK', 'SYN', 'ETB', 'CAN',
+  \ 'EM', 'SUB', 'ESC', 'FS', 'GS', 'RS', 'US', 'SP', 'DEL'
+  \ ]
+" decimal/octal/hex
+let s:escapes += [
+  \ '[0-9]\+',
+  \ 'o[0-7]\+',
+  \ 'x[0-9a-fA-F]\+'
+  \ ]
+let s:escapes = '\\\%(' . join(s:escapes, '\|') . '\)'
+
 syn spell notoplevel
 syn match haskellRecordField contained containedin=haskellBlock
   \ "[_a-z][a-zA-Z0-9_']*\(,\s*[_a-z][a-zA-Z0-9_']*\)*\_s\+::\_s"
@@ -93,10 +115,23 @@ syn match haskellLineComment "---*\([^-!#$%&\*\+./<=>\?@\\^|~].*\)\?$"
   \ haskellTodo,
   \ @Spell
 syn match haskellBacktick "`[A-Za-z_][A-Za-z0-9_\.']*#\?`"
-syn region haskellString start=+"+ skip=+\\\\\|\\"+ end=+"+
-  \ contains=@Spell
+
+syn match haskellCharInvalid "\<'\>"
+syn match haskellEscapeInvalid "\\" contained
+syn match haskellEscapeZero "\\&" contained
+syn match haskellStringGap "\\\n\s*\\" contained
+exe 'syn match haskellEscape' '+'.s:escapes.'+' 'contained'
+exe 'syn match haskellChar' '+\<''\%([^\'']\|'.s:escapes.'\)''\>+' 'contains=haskellEscape'
+
+syn region haskellString start=+"+ end=+"+
+  \ contains=
+  \ haskellEscapeInvalid,
+  \ haskellEscapeZero,
+  \ haskellEscape,
+  \ haskellStringGap,
+  \ @Spell
+
 syn match haskellIdentifier "[_a-z][a-zA-Z0-9_']*" contained
-syn match haskellChar "\<'[^'\\]'\|'\\.'\|'\\u[0-9a-fA-F]\{4}'\>"
 syn match haskellType "\<[A-Z][a-zA-Z0-9_']*\>"
 syn region haskellBlockComment start="{-" end="-}"
   \ contains=
@@ -154,6 +189,11 @@ highlight def link haskellLineComment Comment
 highlight def link haskellBlockComment Comment
 highlight def link haskellPragma SpecialComment
 highlight def link haskellLiquid SpecialComment
+highlight def link haskellCharInvalid Error
+highlight def link haskellEscapeInvalid Error
+highlight def link haskellEscape StringEscape
+highlight def link haskellEscapeZero StringEscape
+highlight def link haskellStringGap StringEscape
 highlight def link haskellString String
 highlight def link haskellChar String
 highlight def link haskellBacktick Operator
@@ -211,3 +251,5 @@ if get(g:, 'haskell_backpack', 0)
   highlight def link haskellBackpackDependency Include
 endif
 let b:current_syntax = "haskell"
+
+unlet s:escapes
